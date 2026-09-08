@@ -1,0 +1,96 @@
+name: 🚀 Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  BE_IMAGE: hyeu420/ecommerce-be
+  FE_IMAGE: hyeu420/ecommerce-fe
+
+jobs:
+  # ─────────────────────────────────────────────
+  # JOB 1: Build & Push Backend
+  # ─────────────────────────────────────────────
+  build-backend:
+    name: Build Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Debug files
+        run: ls -laR ./be
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Build BE image
+        run: docker build -f ./be/Dockerfile -t ${{ env.BE_IMAGE }}:latest -t ${{ env.BE_IMAGE }}:${{ github.sha }} ./be
+
+      - name: Push BE image
+        run: |
+          docker push ${{ env.BE_IMAGE }}:latest
+          docker push ${{ env.BE_IMAGE }}:${{ github.sha }}
+
+  # ─────────────────────────────────────────────
+  # JOB 2: Build & Push Frontend
+  # ─────────────────────────────────────────────
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Debug files
+        run: ls -laR ./fe
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Build FE image
+        run: docker build -f ./fe/Dockerfile -t ${{ env.FE_IMAGE }}:latest -t ${{ env.FE_IMAGE }}:${{ github.sha }} ./fe
+
+      - name: Push FE image
+        run: |
+          docker push ${{ env.FE_IMAGE }}:latest
+          docker push ${{ env.FE_IMAGE }}:${{ github.sha }}
+
+  # ─────────────────────────────────────────────
+  # JOB 3: Deploy — SSH vào từng EC2
+  # ─────────────────────────────────────────────
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend]
+    steps:
+      - name: Deploy to EC2-1
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_1_IP }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ec2-user/ecommerce
+            sudo docker compose pull
+            sudo docker compose up -d --force-recreate
+            sudo docker image prune -f
+            echo "EC2-1 deployed!"
+
+      - name: Deploy to EC2-2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_2_IP }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ec2-user/ecommerce
+            sudo docker compose pull
+            sudo docker compose up -d --force-recreate
+            sudo docker image prune -f
+            echo "EC2-2 deployed!"
