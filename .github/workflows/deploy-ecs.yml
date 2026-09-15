@@ -1,0 +1,65 @@
+name: 🚀 Deploy to ECS
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+  ECS_SERVICE_BE: ${{ vars.ECS_SERVICE_BE }}
+  ECS_SERVICE_FE: ${{ vars.ECS_SERVICE_FE }}
+  ECR_REPOSITORY_BE: ${{ vars.ECR_REPOSITORY_BE }}
+  ECR_REPOSITORY_FE: ${{ vars.ECR_REPOSITORY_FE }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push backend image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -f ./be/Dockerfile -t $REGISTRY/$ECR_REPOSITORY_BE:$IMAGE_TAG ./be
+          docker push $REGISTRY/$ECR_REPOSITORY_BE:$IMAGE_TAG
+
+      - name: Build and push frontend image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -f ./fe/Dockerfile -t $REGISTRY/$ECR_REPOSITORY_FE:$IMAGE_TAG ./fe
+          docker push $REGISTRY/$ECR_REPOSITORY_FE:$IMAGE_TAG
+
+      - name: Force backend service deployment
+        run: |
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE_BE" \
+            --force-new-deployment
+
+      - name: Force frontend service deployment
+        run: |
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE_FE" \
+            --force-new-deployment

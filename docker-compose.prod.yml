@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  be:
+    image: ${BE_IMAGE:?set BE_IMAGE}
+    container_name: ecommerce_be
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: ${DB_URL:?set DB_URL}
+      DB_USERNAME: ${DB_USERNAME:?set DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      SQL_INIT_MODE: never
+
+  fe:
+    image: ${FE_IMAGE:?set FE_IMAGE}
+    container_name: ecommerce_fe
+    ports:
+      - "80:80"
+    depends_on:
+      - be
