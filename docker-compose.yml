@@ -5,13 +5,12 @@ services:
     image: mysql:8.0
     container_name: ecommerce_db
     environment:
-      MYSQL_ROOT_PASSWORD: '1234'
-      MYSQL_DATABASE: 'ecommerce_db'
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-local_dev_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ecommerce_db}
     ports:
       - "3306:3306"
     volumes:
       - db_data:/var/lib/mysql
-      # Automatically initialize the database with data.sql
       - ./db/data.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
@@ -29,10 +28,10 @@ services:
       db:
         condition: service_healthy
     environment:
-      # Use the db service internally
-      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/ecommerce_db?allowPublicKeyRetrieval=true&useSSL=false
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=1234
+      DB_URL: ${DB_URL:-jdbc:mysql://db:3306/ecommerce_db?allowPublicKeyRetrieval=true&useSSL=false}
+      DB_USERNAME: ${DB_USERNAME:-root}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-local_dev_password}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-32chars}
 
   fe:
     build:

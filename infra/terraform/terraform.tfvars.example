@@ -1,0 +1,9 @@
+environment        = "dev"
+aws_region         = "ap-southeast-1"
+vpc_id             = "vpc-xxxxxxxx"
+private_subnet_ids = ["subnet-aaaaaaaa", "subnet-bbbbbbbb"]
+
+db_name     = "ecommerce_db"
+db_username = "ecommerce_user"
+db_password = "replace-me"
+jwt_secret  = "replace-with-32-char-min"
